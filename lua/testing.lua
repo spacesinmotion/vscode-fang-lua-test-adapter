@@ -5,8 +5,12 @@ local fakeTestSuite = {
     children = {
         {
             type = 'suite',
-            id = 'nested',
-            label = 'Suite alla 1',
+            id = 'KeyMapTest',
+            description = 'A main test suite',
+            tooltip = 'Tooltip of a main test suite',
+            file = 'D:/home/marco/develop/some/some_prototype/tests/keymap_test.lua',
+            line = 1,
+            label = 'KeyMapTest',
             children = {
                 {
                     type = 'suite',
@@ -26,19 +30,24 @@ local fakeTestSuite = {
                         {
                             type = 'test',
                             id = 'asdasd',
-                            label = 'Some stuff'
+                            label = 'Some stuff',
+                            skipped=true
                         }
                     }
                 },
                 {
                     type = 'test',
-                    id = 'xtest1',
-                    label = 'Regression 1'
+                    id = 'AssertTrueNotContinue',
+                    file = 'D:/home/marco/develop/some/some_prototype/tests/keymap_test.lua',
+                    line = 13,
+                    label = 'AssertTrueNotContinue'
                 },
                 {
                     type = 'test',
-                    id = 'test2',
-                    label = 'Feature 2'
+                    file = 'D:/home/marco/develop/some/some_prototype/tests/keymap_test.lua',
+                    line = 19,
+                    id = 'AssertFalseNotContinue',
+                    label = 'AssertFalseNotContinue'
                 }
             }
         },
@@ -81,11 +90,15 @@ local function run_test(suite)
     json_out{type = 'test', test = suite.id, state = 'running'}
     wait(math.random(500, 1500))
     if suite.id == 'id_failed' then
-        json_out{type = 'test', test = suite.id, state = 'failed'}
+        json_out{type = 'test', test = suite.id, state = 'failed', message='jo is wrong alla!'}
     elseif suite.id == 'id_errored' then
         json_out{type = 'test', test = suite.id, state = 'errored'}
     elseif suite.id == 'id_skipped' then
         json_out{type = 'test', test = suite.id, state = 'skipped'}
+    elseif suite.id == 'AssertFalseNotContinue' then
+        json_out{type = 'test', test = suite.id, state = 'failed', decorations = { 
+          {line=21, message='message for 21', hover='hover for 21' }
+        }}
     else
         json_out{type = 'test', test = suite.id, state = 'passed'}
     end

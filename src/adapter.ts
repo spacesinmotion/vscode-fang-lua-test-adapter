@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { TestAdapter, TestLoadStartedEvent, TestLoadFinishedEvent, TestRunStartedEvent, TestRunFinishedEvent, TestSuiteEvent, TestEvent, TestSuiteInfo } from 'vscode-test-adapter-api';
+import { TestAdapter, TestLoadStartedEvent, TestLoadFinishedEvent, TestRunStartedEvent, TestRunFinishedEvent, TestSuiteEvent, TestEvent, TestSuiteInfo, RetireEvent } from 'vscode-test-adapter-api';
 import { Log } from 'vscode-test-adapter-util';
 
 import * as child_process from 'child_process';
@@ -14,13 +14,13 @@ export class LuaTestingAdapter implements TestAdapter {
 
 	private readonly testsEmitter = new vscode.EventEmitter<TestLoadStartedEvent | TestLoadFinishedEvent>();
 	private readonly testStatesEmitter = new vscode.EventEmitter<TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent>();
-	private readonly autorunEmitter = new vscode.EventEmitter<void>();
+	private readonly retireEmitter = new vscode.EventEmitter<RetireEvent>();
 
 	private runningTestProcess: child_process.ChildProcess | undefined;
 
 	get tests(): vscode.Event<TestLoadStartedEvent | TestLoadFinishedEvent> { return this.testsEmitter.event; }
 	get testStates(): vscode.Event<TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent> { return this.testStatesEmitter.event; }
-	get autorun(): vscode.Event<void> | undefined { return this.autorunEmitter.event; }
+	get retire(): vscode.Event<RetireEvent> | undefined { return this.retireEmitter.event; }
 
 	constructor(
 		public readonly workspace: vscode.WorkspaceFolder,
@@ -29,7 +29,7 @@ export class LuaTestingAdapter implements TestAdapter {
 		this.log.info('Initializing lua adapter');
 		this.disposables.push(this.testsEmitter);
 		this.disposables.push(this.testStatesEmitter);
-		this.disposables.push(this.autorunEmitter);
+		this.disposables.push(this.retireEmitter);
 	}
 
 	async spawn_lua(args: string[], onStdOut: (o: string) => void, onFinish: () => void): Promise<void> {
@@ -45,17 +45,13 @@ export class LuaTestingAdapter implements TestAdapter {
 				reject()
 			});
 
-			if (this.runningTestProcess.stdout) {
-				this.runningTestProcess.stdout.on('data', (data) => {
-					onStdOut(`${data}`)
-				});
-			}
+			this.runningTestProcess.stdout?.on('data', (data) => {
+				onStdOut(`${data}`)
+			});
 
-			if (this.runningTestProcess.stderr) {
-				this.runningTestProcess.stderr.on('data', (data) => {
-					this.log.error(`lua: ${data}`);
-				});
-			}
+			this.runningTestProcess.stderr?.on('data', (data) => {
+				this.log.error(`lua: ${data}`);
+			});
 
 			this.runningTestProcess.once('exit', () => {
 				this.runningTestProcess = undefined;
@@ -75,6 +71,7 @@ export class LuaTestingAdapter implements TestAdapter {
 		return this.spawn_lua(['suite'], (o: string) => {
 			const suite = <TestSuiteInfo>JSON.parse(o)
 			this.testsEmitter.fire(<TestLoadFinishedEvent>{ type: 'finished', suite });
+			this.retireEmitter.fire(<RetireEvent>{ tests: ['root'] });
 		}, () => { });
 	}
 
