@@ -1,107 +1,215 @@
-local fakeTestSuite = {
-  type = 'suite',
-  id = 'root',
-  label = 'LuaTesting',
-  children = {
-    {
-      type = 'suite',
-      id = 'KeyMapTest',
-      description = 'A main test suite',
-      tooltip = 'Tooltip of a main test suite',
-      file = 'D:/home/marco/develop/some/some_prototype/tests/keymap_test.lua',
-      line = 1,
-      label = 'KeyMapTest',
-      children = {
-        {
-          type = 'suite',
-          id = 'nested_nested',
-          label = 'inner Suite',
-          children = {
-            {type = 'test', id = 'test1', label = 'Test #1'},
-            {type = 'test', id = 'xtest2', label = 'Test f#2'},
-            {type = 'test', id = 'asdasd', label = 'Some stuff', skipped = true},
-          },
-        }, {
-          type = 'test',
-          id = 'AssertTrueNotContinue',
-          file = 'D:/home/marco/develop/some/some_prototype/tests/keymap_test.lua',
-          line = 13,
-          label = 'AssertTrueNotContinue',
-        }, {
-          type = 'test',
-          file = 'D:/home/marco/develop/some/some_prototype/tests/keymap_test.lua',
-          line = 19,
-          id = 'AssertFalseNotContinue',
-          label = 'AssertFalseNotContinue',
-        },
-      },
-    }, {type = 'test', id = 'id_passed', label = 'Passed test'},
-    {type = 'test', id = 'id_failed', label = 'Failed test'},
-    {type = 'test', id = 'id_skipped', label = 'Skipped test'},
-    {type = 'test', id = 'id_errored', label = 'Errored test'},
-  },
-}
-
 local json = require'json'
 
 local function json_out(t) print(json.encode(t)) end
 
-local function wait(msec)
-  local t = os.clock()
-  repeat until os.clock() > t + msec * 1e-3
+local function ends_with(string, ending) return ending == '' or string:sub(-#ending) == ending end
+
+local function exists(file)
+  local ok, err, code = os.rename(file, file)
+  if not ok and code == 13 then return true end
+  return ok, err
 end
 
-local function run_test(suite)
-  json_out{type = 'test', test = suite.id, state = 'running'}
-  wait(math.random(500, 1500))
-  if suite.id == 'id_failed' then
-    json_out{type = 'test', test = suite.id, state = 'failed', message = 'jo is wrong alla!'}
-  elseif suite.id == 'id_errored' then
-    json_out{type = 'test', test = suite.id, state = 'errored'}
-  elseif suite.id == 'id_skipped' then
-    json_out{type = 'test', test = suite.id, state = 'skipped'}
-  elseif suite.id == 'AssertFalseNotContinue' then
-    json_out{
-      type = 'test',
-      test = suite.id,
-      state = 'failed',
-      decorations = {{line = 21, message = 'message for 21', hover = 'hover for 21'}},
-    }
-  else
-    json_out{type = 'test', test = suite.id, state = 'passed'}
-  end
+local function isdir(path) return exists(path .. '/') end
+
+local SEPARATOR = package.config:sub(1, 1)
+
+local function is_windows() return SEPARATOR == '\\' end
+
+local function each_file_in(directory, cb)
+  local call = is_windows() and 'dir "' .. directory .. '" /b' or 'ls "' .. directory .. '"'
+  local pfile = io.popen(call)
+  for filename in pfile:lines() do cb(directory .. SEPARATOR .. filename) end
+  pfile:close()
 end
 
-local function run_all(suite)
-  if suite.type == 'suite' then
-    json_out{type = 'suite', suite = suite.id, state = 'running'}
-    for _, c in ipairs(suite.children) do run_all(c) end
-    json_out{type = 'suite', suite = suite.id, state = 'completed'}
-  elseif suite.type == 'test' then
-    run_test(suite)
-  end
-end
-
-local function run_selected(suite, selection)
-  if suite.type == 'suite' then
-    if selection[suite.id] then
-      run_all(suite)
-    else
-      for _, c in ipairs(suite.children) do run_selected(c, selection) end
+local function each_lua_test_file(directory, cb)
+  each_file_in(directory, function(filepath)
+    if isdir(filepath) then
+      each_lua_test_file(filepath, cb)
+    elseif ends_with(filepath, '_test.lua') then
+      cb(filepath)
     end
-  elseif suite.type == 'test' and selection[suite.id] then
-    run_test(suite)
+  end)
+end
+
+local function get_linenumber_from_traceback(text, line)
+  line = line or 3
+  local i = 0
+  for s in text:gmatch('[^\r\n]+') do
+    i = i + 1
+    if i == line then
+      local b = s:find(':')
+      local e = s:find(':', b + 1)
+      return tonumber(s:sub(b + 1, e - 1))
+    end
   end
+  return 666
+end
+
+function TestCase(name)
+  return {
+    __meta = {
+      name = name,
+      line = get_linenumber_from_traceback(debug.traceback(), 3) - 1,
+      tests = {},
+    },
+  }
+end
+
+local current_errors
+local function push_error(line, err)
+  current_errors[#current_errors + 1] = {line = tonumber(line) - 1, message = tostring(err)}
+end
+
+local function add_error(e) push_error(get_linenumber_from_traceback(debug.traceback(), 4), e) end
+
+local ASSERT = {}
+local function add_assert(e)
+  push_error(get_linenumber_from_traceback(debug.traceback(), 4), e .. ' STOP')
+  error(ASSERT)
+end
+
+function EXPECT_TRUE(condition)
+  if condition then return end
+  add_error('not true')
+end
+function ASSERT_TRUE(condition)
+  if condition then return end
+  add_assert('not true')
+end
+
+function EXPECT_FALSE(condition)
+  if not condition then return end
+  add_error('not false')
+end
+function ASSERT_FALSE(condition)
+  if not condition then return end
+  add_assert('not false')
+end
+
+function EXPECT_EQ(a, b)
+  if a == b then return end
+  add_error('got ' .. (a or '(nil)') .. ', expect ' .. (b or '(nil)'))
+end
+function ASSERT_EQ(a, b)
+  if a == b then return end
+  add_assert('got ' .. (a or '(nil)') .. ', expect ' .. (b or '(nil)'))
+end
+
+function EXPECT_NE(a, b)
+  if a ~= b then return end
+  add_error('expect not ' .. (a or '(nil)'))
+end
+function ASSERT_NE(a, b)
+  if a ~= b then return end
+  add_assert('expect not ' .. (a or '(nil)'))
+end
+
+local function parse_suite(suite, file)
+  local children = {}
+  for key, v in pairs(suite) do
+    if key ~= '__meta' and type(v) == 'function' then
+      local f_info = debug.getinfo(v)
+      children[#children + 1] = {
+        type = 'test',
+        id = key,
+        description = key,
+        tooltip = key,
+        file = f_info.source:sub(2):gsub('\\', '/'),
+        line = f_info.linedefined - 1,
+        label = key,
+      }
+    elseif key ~= '__meta' and type(v) == 'table' and v.__meta then
+      children[#children + 1] = parse_suite(v, file)
+    end
+  end
+  return {
+    type = 'suite',
+    id = suite.__meta.name,
+    description = suite.__meta.name,
+    tooltip = suite.__meta.name,
+    file = file:gsub('\\', '/'),
+    line = suite.__meta.line,
+    label = suite.__meta.name,
+    children = children,
+  }
+end
+
+local function get_suites(path)
+  package.path = package.path .. ';' .. path .. '\\?.lua'
+
+  local root = {type = 'suite', id = 'root', label = 'LuaTesting', children = {}}
+  each_lua_test_file(path, function(name)
+    local suite = require(name:sub(path:len() + 2, -5))
+    root.children[#root.children + 1] = parse_suite(suite, name)
+  end)
+  return root
+end
+
+local function run_test_call(fun)
+  local _ENV = {}
+  fun()
+end
+
+local function test_runner(fun, name)
+  json_out{type = 'test', test = name, state = 'running'}
+
+  current_errors = {}
+  local ok, err = pcall(run_test_call, fun)
+
+  if not ok and err ~= ASSERT then push_error(0, tostring(err)) end
+
+  local message = name .. ':\n  '
+  for _, v in ipairs(current_errors) do
+    message = message .. v.line + 1 .. ': ' .. v.message .. '\n  '
+  end
+
+  json_out{
+    type = 'test',
+    test = name,
+    state = #current_errors == 0 and 'passed' or 'failed',
+    message = #current_errors == 0 and nil or message,
+    decorations = current_errors,
+  }
+end
+
+local function run_suite(suite, selection)
+  for key, v in pairs(suite) do
+    if selection.root or selection[key] then
+      if key ~= '__meta' and type(v) == 'function' then
+        test_runner(v, key)
+      elseif key ~= '__meta' and type(v) == 'table' and v.__meta then
+        json_out{type = 'suite', suite = key, state = 'running'}
+        run_suite(v, {root = true})
+        json_out{type = 'suite', suite = key, state = 'completed'}
+      end
+    elseif type(v) == 'table' and v.__meta then
+      run_suite(v, selection)
+    end
+  end
+end
+
+local function run(path, selection)
+  package.path = package.path .. ';' .. path .. '\\?.lua'
+  each_lua_test_file(path, function(name)
+    local suite = require(name:sub(path:len() + 2, -5))
+    if selection[suite.__meta.name] then
+      run_suite(suite, {root = true})
+    else
+      run_suite(suite, selection)
+    end
+  end)
 end
 
 if arg[1] == 'suite' then
-  print(json.encode(fakeTestSuite))
+  json_out(get_suites(arg[2]))
 elseif arg[1] == 'run' then
   if #arg == 1 then
-    run_all(fakeTestSuite)
+    run(arg[#arg], {root = true})
   else
     local as_set = {}
-    for i = 2, #arg do as_set[arg[i]] = true end
-    run_selected(fakeTestSuite, as_set)
+    for i = 2, #arg - 1 do as_set[arg[i]] = true end
+    run(arg[#arg], as_set)
   end
 end

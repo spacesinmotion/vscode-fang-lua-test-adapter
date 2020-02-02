@@ -34,7 +34,8 @@ export class LuaTestingAdapter implements TestAdapter {
 
 	async spawn_lua(args: string[], onStdOut: (o: string) => void, onFinish: () => void): Promise<void> {
 		return new Promise<void>((resolve, reject) => {
-			this.runningTestProcess = child_process.spawn('c:/usr/bin/lua', ['testing.lua'].concat(args), {
+			const path = this.workspace.uri.path.normalize().substr(1)
+			this.runningTestProcess = child_process.spawn('c:/usr/bin/lua', ['testing.lua'].concat(args).concat([path]), {
 				cwd: __dirname + '/../lua'
 			});
 
@@ -50,7 +51,8 @@ export class LuaTestingAdapter implements TestAdapter {
 			});
 
 			this.runningTestProcess.stderr?.on('data', (data) => {
-				this.log.error(`lua: ${data}`);
+				const xx = `${data}`
+				this.log.error(`lua: ${xx}`);
 			});
 
 			this.runningTestProcess.once('exit', () => {
@@ -67,19 +69,21 @@ export class LuaTestingAdapter implements TestAdapter {
 		this.log.info('Loading lua tests');
 
 		this.testsEmitter.fire(<TestLoadStartedEvent>{ type: 'started' });
+		var suiteData = ""
 
 		return this.spawn_lua(['suite'], (o: string) => {
-			const suite = <TestSuiteInfo>JSON.parse(o)
+			suiteData += o.trim()
+		}, () => {
+			const suite = <TestSuiteInfo>JSON.parse(suiteData)
 			this.testsEmitter.fire(<TestLoadFinishedEvent>{ type: 'finished', suite });
 			this.retireEmitter.fire(<RetireEvent>{ tests: ['root'] });
-		}, () => { });
+		});
 	}
 
 	async run(tests: string[]): Promise<void> {
 		if (this.runningTestProcess) return
 
 		this.log.info(`Running lua tests ${JSON.stringify(tests)}`);
-
 		this.testStatesEmitter.fire(<TestRunStartedEvent>{ type: 'started', tests });
 
 		return this.spawn_lua(['run'].concat(tests), (o: string) => {
