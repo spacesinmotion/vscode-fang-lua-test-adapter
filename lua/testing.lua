@@ -47,7 +47,7 @@ local function get_linenumber_from_traceback(text, line)
   return 666
 end
 
-function TestCase(name)
+function TestSuite(name)
   return {
     __meta = {
       name = name,

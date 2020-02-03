@@ -1,26 +1,27 @@
 {
-  "name": "vscode-example-test-adapter",
-  "displayName": "Example Test Explorer",
-  "description": "Run your Example tests in the Sidebar of Visual Studio Code",
+  "name": "vscode-lua-testing-adapter",
+  "displayName": "Lua Testing Explorer",
+  "description": "Simple testing framework for lua inside Visual Studio Code",
   "icon": "img/icon.png",
-  "author": "Holger Benl <hbenl@evandor.de>",
-  "publisher": "hbenl",
+  "author": "Marco Böttcher <spacesinmotion@gmail.com>",
+  "publisher": "spacesinmotion",
   "version": "0.0.1",
   "license": "MIT",
-  "homepage": "https://github.com/hbenl/vscode-example-test-adapter",
+  "homepage": "",
   "repository": {
     "type": "git",
-    "url": "https://github.com/hbenl/vscode-example-test-adapter.git"
+    "url": ""
   },
   "bugs": {
-    "url": "https://github.com/hbenl/vscode-example-test-adapter/issues"
+    "url": ""
   },
   "categories": [
     "Other"
   ],
   "keywords": [
     "test",
-    "testing"
+    "testing",
+    "lua"
   ],
   "main": "out/main.js",
   "scripts": {
@@ -53,14 +54,20 @@
   "contributes": {
     "configuration": {
       "type": "object",
-      "title": "Example Test Explorer configuration",
+      "title": "Lua Testing Explorer configuration",
       "properties": {
-        "exampleExplorer.logpanel": {
+        "luatesting.luaexecutatble": {
+          "description": "The path to the lua execution file",
+          "type": "string",
+          "scope": "resource",
+          "default": "lua"
+        },
+        "luatesting.logpanel": {
           "description": "write diagnotic logs to an output panel",
           "type": "boolean",
           "scope": "resource"
         },
-        "exampleExplorer.logfile": {
+        "luatesting.logfile": {
           "description": "write diagnostic logs to the given file",
           "type": "string",
           "scope": "resource"
