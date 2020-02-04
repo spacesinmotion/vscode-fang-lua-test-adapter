@@ -106,27 +106,28 @@ function ASSERT_NE(a, b)
   add_assert('expect not ' .. (a or '(nil)'))
 end
 
-local function parse_suite(suite, file)
+local function parse_suite(suite, filepath, postfix)
   local children = {}
   for key, v in pairs(suite) do
     if key ~= '__meta' and type(v) == 'function' then
       local f_info = debug.getinfo(v)
       children[#children + 1] = {
         type = 'test',
-        id = key,
-        file = file,
+        id = key .. '.' .. suite.__meta.name .. '.' .. postfix,
+        -- tooltip = key .. '.' .. suite.__meta.name .. '.' .. postfix,
+        file = filepath,
         line = f_info.linedefined - 1,
         label = key,
       }
     elseif key ~= '__meta' and type(v) == 'table' and v.__meta then
-      children[#children + 1] = parse_suite(v, file)
+      children[#children + 1] = parse_suite(v, filepath, suite.__meta.name .. '.' .. postfix)
     end
   end
   return {
     type = 'suite',
-    id = suite.__meta.name,
-    description = suite.__meta.name,
-    file = file:gsub('\\', '/'),
+    id = suite.__meta.name .. '.' .. postfix,
+    -- tooltip = suite.__meta.name .. '.' .. postfix,
+    file = filepath:gsub('\\', '/'),
     line = suite.__meta.line,
     label = suite.__meta.name,
     children = children,
@@ -135,9 +136,9 @@ end
 
 local function get_suites(path)
   local root = {type = 'suite', id = 'root', label = 'LuaTesting', children = {}}
-  each_lua_test_file(path, function(name)
-    local suite = dofile(name)
-    root.children[#root.children + 1] = parse_suite(suite, name)
+  each_lua_test_file(path, function(filepath)
+    local suite = dofile(filepath)
+    root.children[#root.children + 1] = parse_suite(suite, filepath, filepath)
   end)
   return root
 end
@@ -147,8 +148,8 @@ local function run_test_call(fun)
   fun()
 end
 
-local function test_runner(fun, name)
-  json_out{type = 'test', test = name, state = 'running'}
+local function test_runner(fun, name, id)
+  json_out{type = 'test', test = id, state = 'running'}
 
   current_errors = {}
   local ok, err = pcall(run_test_call, fun)
@@ -162,28 +163,32 @@ local function test_runner(fun, name)
 
   json_out{
     type = 'test',
-    test = name,
+    test = id,
     state = #current_errors == 0 and 'passed' or 'failed',
     message = #current_errors == 0 and nil or message,
     decorations = current_errors,
   }
 end
 
-local function run_recursive(suite, selection)
-  local run_all = selection.root or selection[suite.__meta.name]
+local function run_recursive(suite, selection, postfix)
+  postfix = suite.__meta.name .. '.' .. postfix
+  local run_all = selection.root or selection[postfix]
+  if run_all then json_out{type = 'suite', suite = postfix, state = 'running'} end
   for k, v in pairs(suite) do
-    if type(v) == 'function' and (run_all or selection[k]) then
-      test_runner(v, k)
+    if type(v) == 'function' and (run_all or selection[k .. '.' .. postfix]) then
+      test_runner(v, k, k .. '.' .. postfix)
     elseif type(v) == 'table' and v.__meta then
-      run_recursive(v, (run_all or selection[k]) and {root = true} or selection)
+      run_recursive(v, (run_all or selection[v.__meta.name .. '.' .. postfix]) and {root = true} or
+                      selection, postfix)
     end
   end
+  if run_all then json_out{type = 'suite', suite = postfix, state = 'completed'} end
 end
 
 local function run(path, selection)
-  each_lua_test_file(path, function(name)
-    local suite = dofile(name)
-    run_recursive(suite, selection)
+  each_lua_test_file(path, function(filepath)
+    local suite = dofile(filepath)
+    run_recursive(suite, selection, filepath)
   end)
 end
 
