@@ -55,12 +55,15 @@ export class LuaTestingAdapter implements TestAdapter {
 			this.runningTestProcess.stderr?.on('data', (data) => {
 				const xx = `${data}`
 				this.log.error(`lua: ${xx}`);
+				this.runningTestProcess = undefined;
+				onFinish()
+				reject()
 			});
 
 			this.runningTestProcess.once('exit', () => {
 				this.runningTestProcess = undefined;
-				resolve();
 				onFinish()
+				resolve();
 			});
 		});
 	}

@@ -114,9 +114,7 @@ local function parse_suite(suite, file)
       children[#children + 1] = {
         type = 'test',
         id = key,
-        description = key,
-        tooltip = key,
-        file = f_info.source:sub(2):gsub('\\', '/'),
+        file = file,
         line = f_info.linedefined - 1,
         label = key,
       }
@@ -128,7 +126,6 @@ local function parse_suite(suite, file)
     type = 'suite',
     id = suite.__meta.name,
     description = suite.__meta.name,
-    tooltip = suite.__meta.name,
     file = file:gsub('\\', '/'),
     line = suite.__meta.line,
     label = suite.__meta.name,
@@ -137,11 +134,9 @@ local function parse_suite(suite, file)
 end
 
 local function get_suites(path)
-  package.path = package.path .. ';' .. path .. '\\?.lua'
-
   local root = {type = 'suite', id = 'root', label = 'LuaTesting', children = {}}
   each_lua_test_file(path, function(name)
-    local suite = require(name:sub(path:len() + 2, -5))
+    local suite = dofile(name)
     root.children[#root.children + 1] = parse_suite(suite, name)
   end)
   return root
@@ -191,9 +186,8 @@ local function run_suite(suite, selection)
 end
 
 local function run(path, selection)
-  package.path = package.path .. ';' .. path .. '\\?.lua'
   each_lua_test_file(path, function(name)
-    local suite = require(name:sub(path:len() + 2, -5))
+    local suite = dofile(name)
     if selection[suite.__meta.name] then
       run_suite(suite, {root = true})
     else
