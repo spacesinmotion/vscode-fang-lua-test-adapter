@@ -169,18 +169,13 @@ local function test_runner(fun, name)
   }
 end
 
-local function run_suite(suite, selection)
-  for key, v in pairs(suite) do
-    if selection.root or selection[key] then
-      if key ~= '__meta' and type(v) == 'function' then
-        test_runner(v, key)
-      elseif key ~= '__meta' and type(v) == 'table' and v.__meta then
-        json_out{type = 'suite', suite = key, state = 'running'}
-        run_suite(v, {root = true})
-        json_out{type = 'suite', suite = key, state = 'completed'}
-      end
+local function run_recursive(suite, selection)
+  local run_all = selection.root or selection[suite.__meta.name]
+  for k, v in pairs(suite) do
+    if type(v) == 'function' and (run_all or selection[k]) then
+      test_runner(v, k)
     elseif type(v) == 'table' and v.__meta then
-      run_suite(v, selection)
+      run_recursive(v, (run_all or selection[k]) and {root = true} or selection)
     end
   end
 end
@@ -188,11 +183,7 @@ end
 local function run(path, selection)
   each_lua_test_file(path, function(name)
     local suite = dofile(name)
-    if selection[suite.__meta.name] then
-      run_suite(suite, {root = true})
-    else
-      run_suite(suite, selection)
-    end
+    run_recursive(suite, selection)
   end)
 end
 
