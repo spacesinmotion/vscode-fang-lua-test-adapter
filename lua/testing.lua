@@ -39,7 +39,7 @@ local function get_linenumber_from_traceback(text, line)
   for s in text:gmatch('[^\r\n]+') do
     i = i + 1
     if i == line then
-      local b = s:find(':')
+      local b = s:find(':', 4)
       local e = s:find(':', b + 1)
       return tonumber(s:sub(b + 1, e - 1))
     end
@@ -49,11 +49,7 @@ end
 
 function TestSuite(name)
   return {
-    __meta = {
-      name = name,
-      line = get_linenumber_from_traceback(debug.traceback(), 3) - 1,
-      tests = {},
-    },
+    __meta = {name = name, line = get_linenumber_from_traceback(debug.traceback(), 3), tests = {}},
   }
 end
 
@@ -128,7 +124,7 @@ local function parse_suite(suite, filepath, postfix)
     id = suite.__meta.name .. '.' .. postfix,
     -- tooltip = suite.__meta.name .. '.' .. postfix,
     file = filepath:gsub('\\', '/'),
-    line = suite.__meta.line,
+    line = suite.__meta.line - 1,
     label = suite.__meta.name,
     children = children,
   }
@@ -192,6 +188,7 @@ local function run(path, selection)
   end)
 end
 
+package.path = arg[#arg] .. '/?.lua;' .. package.path
 if arg[1] == 'suite' then
   json_out(get_suites(arg[2]))
 elseif arg[1] == 'run' then
