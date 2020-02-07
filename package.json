@@ -7,13 +7,13 @@
   "publisher": "spacesinmotion",
   "version": "0.0.1",
   "license": "MIT",
-  "homepage": "",
+  "homepage": "https://github.com/spacesinmotion/vscode-lua-testing-adapter",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/spacesinmotion/vscode-lua-testing-adapter"
   },
   "bugs": {
-    "url": ""
+    "url": "https://github.com/spacesinmotion/vscode-lua-testing-adapter"
   },
   "categories": [
     "Other"
