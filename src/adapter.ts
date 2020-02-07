@@ -4,10 +4,6 @@ import { Log } from 'vscode-test-adapter-util';
 
 import * as child_process from 'child_process';
 
-/**
- * This class is intended as a starting point for implementing a "real" TestAdapter.
- * The file `README.md` contains further instructions.
- */
 export class LuaTestingAdapter implements TestAdapter {
 
 	private disposables: { dispose(): void }[] = [];
