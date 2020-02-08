@@ -133,8 +133,8 @@ end
 local function get_suites(path)
   local root = {type = 'suite', id = 'root', label = 'LuaTesting', children = {}}
   each_lua_test_file(path, function(filepath)
-    local suite = dofile(filepath)
-    root.children[#root.children + 1] = parse_suite(suite, filepath, filepath)
+    local ok, suite = pcall(dofile, filepath)
+    if ok then root.children[#root.children + 1] = parse_suite(suite, filepath, filepath) end
   end)
   return root
 end
