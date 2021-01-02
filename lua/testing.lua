@@ -1,8 +1,10 @@
-local json = require'json'
+local json = require 'json'
 
 local function json_out(t) print(json.encode(t)) end
 
-local function ends_with(string, ending) return ending == '' or string:sub(-#ending) == ending end
+local function ends_with(string, ending)
+  return ending == '' or string:sub(-#ending) == ending
+end
 
 local function exists(file)
   local ok, err, code = os.rename(file, file)
@@ -17,7 +19,8 @@ local SEPARATOR = package.config:sub(1, 1)
 local function is_windows() return SEPARATOR == '\\' end
 
 local function each_file_in(directory, cb)
-  local call = is_windows() and 'dir "' .. directory .. '" /b' or 'ls "' .. directory .. '"'
+  local call = is_windows() and 'dir "' .. directory .. '" /b' or 'ls -a "' ..
+                   directory .. '"'
   local pfile = io.popen(call)
   for filename in pfile:lines() do cb(directory .. SEPARATOR .. filename) end
   pfile:close()
@@ -49,16 +52,25 @@ end
 
 function TestSuite(name)
   return {
-    __meta = {name = name, line = get_linenumber_from_traceback(debug.traceback(), 3), tests = {}},
+    __meta = {
+      name = name,
+      line = get_linenumber_from_traceback(debug.traceback(), 3),
+      tests = {},
+    },
   }
 end
 
 local current_errors
 local function push_error(line, err)
-  current_errors[#current_errors + 1] = {line = tonumber(line) - 1, message = tostring(err)}
+  current_errors[#current_errors + 1] = {
+    line = tonumber(line) - 1,
+    message = tostring(err),
+  }
 end
 
-local function add_error(e) push_error(get_linenumber_from_traceback(debug.traceback(), 4), e) end
+local function add_error(e)
+  push_error(get_linenumber_from_traceback(debug.traceback(), 4), e)
+end
 
 local ASSERT = {}
 local function add_assert(e)
@@ -116,7 +128,8 @@ local function parse_suite(suite, filepath, postfix)
         label = key,
       }
     elseif key ~= '__meta' and type(v) == 'table' and v.__meta then
-      children[#children + 1] = parse_suite(v, filepath, suite.__meta.name .. '.' .. postfix)
+      children[#children + 1] = parse_suite(v, filepath,
+                                            suite.__meta.name .. '.' .. postfix)
     end
   end
   return {
@@ -131,10 +144,17 @@ local function parse_suite(suite, filepath, postfix)
 end
 
 local function get_suites(path)
-  local root = {type = 'suite', id = 'root', label = 'LuaTesting', children = {}}
+  local root = {
+    type = 'suite',
+    id = 'root',
+    label = 'LuaTesting',
+    children = {},
+  }
   each_lua_test_file(path, function(filepath)
     local ok, suite = pcall(dofile, filepath)
-    if ok then root.children[#root.children + 1] = parse_suite(suite, filepath, filepath) end
+    if ok then
+      root.children[#root.children + 1] = parse_suite(suite, filepath, filepath)
+    end
   end)
   return root
 end
@@ -145,7 +165,7 @@ local function run_test_call(fun)
 end
 
 local function test_runner(fun, name, id)
-  json_out{type = 'test', test = id, state = 'running'}
+  json_out {type = 'test', test = id, state = 'running'}
 
   current_errors = {}
   local ok, err = pcall(run_test_call, fun)
@@ -157,7 +177,7 @@ local function test_runner(fun, name, id)
     message = message .. v.line + 1 .. ': ' .. v.message .. '\n  '
   end
 
-  json_out{
+  json_out {
     type = 'test',
     test = id,
     state = #current_errors == 0 and 'passed' or 'failed',
@@ -169,16 +189,19 @@ end
 local function run_recursive(suite, selection, postfix)
   postfix = suite.__meta.name .. '.' .. postfix
   local run_all = selection.root or selection[postfix]
-  if run_all then json_out{type = 'suite', suite = postfix, state = 'running'} end
+  if run_all then json_out {type = 'suite', suite = postfix, state = 'running'} end
   for k, v in pairs(suite) do
     if type(v) == 'function' and (run_all or selection[k .. '.' .. postfix]) then
       test_runner(v, k, k .. '.' .. postfix)
     elseif type(v) == 'table' and v.__meta then
-      run_recursive(v, (run_all or selection[v.__meta.name .. '.' .. postfix]) and {root = true} or
-                      selection, postfix)
+      run_recursive(v,
+                    (run_all or selection[v.__meta.name .. '.' .. postfix]) and
+                        {root = true} or selection, postfix)
     end
   end
-  if run_all then json_out{type = 'suite', suite = postfix, state = 'completed'} end
+  if run_all then
+    json_out {type = 'suite', suite = postfix, state = 'completed'}
+  end
 end
 
 local function run(path, selection)

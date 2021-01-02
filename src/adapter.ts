@@ -32,8 +32,12 @@ export class LuaTestingAdapter implements TestAdapter {
 		return new Promise<void>((resolve, reject) => {
 			const lua_executable = <string>vscode.workspace.getConfiguration("luatesting", null).get("luaexecutatble");
 
-			const path = this.workspace.uri.path.normalize().substr(1)
-			this.runningTestProcess = child_process.spawn(lua_executable, ['testing.lua'].concat(args).concat([path]), {
+			var path = this.workspace.uri.path.normalize()
+			if (!path.startsWith('/')) {
+				path = path.substring(1)
+			}
+			const call = ['testing.lua'].concat(args).concat([path])
+			this.runningTestProcess = child_process.spawn(lua_executable, call, {
 				cwd: __dirname + '/../lua'
 			});
 
