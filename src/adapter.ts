@@ -36,9 +36,9 @@ export class LuaTestingAdapter implements TestAdapter {
 			if (!path.startsWith('/')) {
 				path = path.substring(1)
 			}
-			const call = ['testing.lua'].concat(args).concat([path])
+			const call = ['fang.lua'].concat(args).concat([path])
 			this.runningTestProcess = child_process.spawn(lua_executable, call, {
-				cwd: __dirname + '/../lua'
+				cwd: __dirname + '/../fang'
 			});
 
 			this.runningTestProcess.on('error', (err) => {

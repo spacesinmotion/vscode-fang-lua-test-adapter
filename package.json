@@ -1,6 +1,6 @@
 {
-  "name": "vscode-lua-testing-adapter",
-  "displayName": "Lua Testing Explorer",
+  "name": "vscode-fang-lua-test-adapter",
+  "displayName": "Fang Lua Test Adapter",
   "description": "Simple testing framework for lua inside Visual Studio Code",
   "icon": "img/icon.png",
   "author": "Marco Böttcher <spacesinmotion@gmail.com>",
