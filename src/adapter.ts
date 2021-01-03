@@ -28,7 +28,11 @@ export class LuaTestingAdapter implements TestAdapter {
 		this.disposables.push(this.retireEmitter);
 	}
 
-	async spawn_lua(args: string[], onStdOut: (o: string) => void, onFinish: () => void): Promise<void> {
+	show_error(message: string): void {
+		vscode.window.showErrorMessage("Fang test adapter error:\n" + message)
+	}
+
+	async spawn_lua(args: string[], onStdOut: (o: string) => void, onFinish: (error: string) => void): Promise<void> {
 		return new Promise<void>((resolve, reject) => {
 			const lua_executable = <string>vscode.workspace.getConfiguration("luatesting", null).get("luaexecutatble");
 
@@ -41,29 +45,29 @@ export class LuaTestingAdapter implements TestAdapter {
 				cwd: __dirname + '/../fang'
 			});
 
-			this.runningTestProcess.on('error', (err) => {
-				this.log.error(`Failed to start subprocess. ${err}`);
-				this.runningTestProcess = undefined
-				onFinish()
-				reject()
-			});
-
 			this.runningTestProcess.stdout?.on('data', (data) => {
 				onStdOut(`${data}`)
 			});
 
+			var standard_error_out = ''
 			this.runningTestProcess.stderr?.on('data', (data) => {
-				const xx = `${data}`;
-				this.log.error(`lua: ${xx}`);
-				this.runningTestProcess = undefined;
-				onFinish()
+				standard_error_out += `${data}`
+			});
+
+			this.runningTestProcess.on('error', (err) => {
+				this.show_error(`Failed to start subprocess. ${err}`);
+				onFinish(`Failed to start subprocess. ${err}`)
 				reject()
+				this.runningTestProcess = undefined
 			});
 
 			this.runningTestProcess.once('exit', () => {
-				this.runningTestProcess = undefined;
-				onFinish()
+				if (standard_error_out != '') {
+					this.show_error(standard_error_out)
+				}
+				onFinish(standard_error_out)
 				resolve();
+				this.runningTestProcess = undefined;
 			});
 		});
 	}
@@ -78,9 +82,20 @@ export class LuaTestingAdapter implements TestAdapter {
 
 		return this.spawn_lua(['suite'], (o: string) => {
 			suiteData += o.trim()
-		}, () => {
-			const suite = <TestSuiteInfo>JSON.parse(suiteData)
-			this.testsEmitter.fire(<TestLoadFinishedEvent>{ type: 'finished', suite });
+		}, (errorMessage: string) => {
+			if (errorMessage != '')
+				this.testsEmitter.fire(<TestLoadFinishedEvent>{ type: 'finished', errorMessage });
+			else if (suiteData != '') {
+				try {
+					const suite = <TestSuiteInfo>JSON.parse(suiteData)
+					this.testsEmitter.fire(<TestLoadFinishedEvent>{ type: 'finished', suite });
+				} catch (e) {
+					errorMessage = "Failed to parse test suit information."
+					this.show_error(errorMessage)
+					this.testsEmitter.fire(<TestLoadFinishedEvent>{ type: 'finished', errorMessage });
+				}
+			}
+
 			this.retireEmitter.fire(<RetireEvent>{ tests: ['root'] });
 		});
 	}
@@ -92,8 +107,12 @@ export class LuaTestingAdapter implements TestAdapter {
 		this.testStatesEmitter.fire(<TestRunStartedEvent>{ type: 'started', tests });
 
 		return this.spawn_lua(['run'].concat(tests), (o: string) => {
-			for (const l of o.split(/\r?\n/).filter(x => x)) {
-				this.testStatesEmitter.fire(<TestEvent>JSON.parse(l))
+			try {
+				for (const l of o.split(/\r?\n/).filter(x => x)) {
+					this.testStatesEmitter.fire(<TestEvent>JSON.parse(l))
+				}
+			} catch (e) {
+				this.show_error("Failed to parse test run information.")
 			}
 		}, () => {
 			this.testStatesEmitter.fire(<TestRunFinishedEvent>{ type: 'finished' });
