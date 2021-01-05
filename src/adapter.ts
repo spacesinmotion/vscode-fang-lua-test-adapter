@@ -32,7 +32,7 @@ export class LuaTestingAdapter implements TestAdapter {
 		vscode.window.showErrorMessage("Fang test adapter error:\n" + message)
 	}
 
-	async spawn_lua(args: string[], onStdOut: (o: string) => void, onFinish: (error: string) => void): Promise<void> {
+	async spawn_lua(mode: string, tests: string[], onStdOut: (o: string) => void, onFinish: (error: string) => void): Promise<void> {
 		return new Promise<void>((resolve, reject) => {
 			const lua_executable = <string>vscode.workspace.getConfiguration("luatesting", null).get("luaexecutatble");
 
@@ -40,7 +40,7 @@ export class LuaTestingAdapter implements TestAdapter {
 			if (!path.startsWith('/')) {
 				path = path.substring(1)
 			}
-			const call = ['fang.lua'].concat(args).concat([path])
+			const call = ['fang.lua'].concat([mode]).concat([path]).concat(tests)
 			this.runningTestProcess = child_process.spawn(lua_executable, call, {
 				cwd: __dirname + '/../fang'
 			});
@@ -80,7 +80,7 @@ export class LuaTestingAdapter implements TestAdapter {
 		this.testsEmitter.fire(<TestLoadStartedEvent>{ type: 'started' });
 		var suiteData = ""
 
-		return this.spawn_lua(['suite'], (o: string) => {
+		return this.spawn_lua('suite', [], (o: string) => {
 			suiteData += o.trim()
 		}, (errorMessage: string) => {
 			if (errorMessage != '')
@@ -106,7 +106,7 @@ export class LuaTestingAdapter implements TestAdapter {
 		this.log.info(`Running lua tests ${JSON.stringify(tests)}`);
 		this.testStatesEmitter.fire(<TestRunStartedEvent>{ type: 'started', tests });
 
-		return this.spawn_lua(['run'].concat(tests), (o: string) => {
+		return this.spawn_lua('run',tests, (o: string) => {
 			try {
 				for (const l of o.split(/\r?\n/).filter(x => x)) {
 					this.testStatesEmitter.fire(<TestEvent>JSON.parse(l))
