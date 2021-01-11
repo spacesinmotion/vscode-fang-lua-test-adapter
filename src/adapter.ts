@@ -88,7 +88,10 @@ export class LuaTestingAdapter implements TestAdapter {
 			else if (suiteData != '') {
 				try {
 					const suite = <TestSuiteInfo>JSON.parse(suiteData)
-					this.testsEmitter.fire(<TestLoadFinishedEvent>{ type: 'finished', suite });
+					if ('children' in suite)
+						this.testsEmitter.fire(<TestLoadFinishedEvent>{ type: 'finished', suite });
+					else
+						this.testsEmitter.fire(<TestLoadFinishedEvent>{ type: 'finished', errorMessage: 'No tests found' });
 				} catch (e) {
 					errorMessage = "Failed to parse test suit information."
 					this.show_error(errorMessage)
@@ -106,7 +109,7 @@ export class LuaTestingAdapter implements TestAdapter {
 		this.log.info(`Running lua tests ${JSON.stringify(tests)}`);
 		this.testStatesEmitter.fire(<TestRunStartedEvent>{ type: 'started', tests });
 
-		return this.spawn_lua('run',tests, (o: string) => {
+		return this.spawn_lua('run', tests, (o: string) => {
 			try {
 				for (const l of o.split(/\r?\n/).filter(x => x)) {
 					this.testStatesEmitter.fire(<TestEvent>JSON.parse(l))
