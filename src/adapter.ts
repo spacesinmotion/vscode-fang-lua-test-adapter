@@ -71,19 +71,19 @@ export class FangLuaTestingAdapter implements TestAdapter {
 			});
 
 			this.runningTestProcess.on('error', (err) => {
+				this.runningTestProcess = undefined
 				this.show_error(`Failed to start subprocess. ${err}`);
 				onFinish(`Failed to start subprocess. ${err}`)
 				reject()
-				this.runningTestProcess = undefined
 			});
 
 			this.runningTestProcess.once('exit', () => {
+				this.runningTestProcess = undefined;
 				if (standard_error_out != '') {
 					this.show_error(standard_error_out)
 				}
 				onFinish(standard_error_out)
 				resolve();
-				this.runningTestProcess = undefined;
 			});
 		});
 	}
