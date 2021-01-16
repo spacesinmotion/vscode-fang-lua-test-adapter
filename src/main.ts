@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { TestHub, testExplorerExtensionId } from 'vscode-test-adapter-api';
 import { Log, TestAdapterRegistrar } from 'vscode-test-adapter-util';
-import { LuaTestingAdapter } from './adapter';
+import { FangLuaTestingAdapter } from './adapter';
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -18,7 +18,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		context.subscriptions.push(new TestAdapterRegistrar(
 			testHub,
-			workspaceFolder => new LuaTestingAdapter(workspaceFolder, log),
+			workspaceFolder => new FangLuaTestingAdapter(workspaceFolder, log),
 			log
 		));
 	}

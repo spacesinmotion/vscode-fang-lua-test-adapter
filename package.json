@@ -56,18 +56,18 @@
       "type": "object",
       "title": "Lua Testing Explorer configuration",
       "properties": {
-        "luatesting.luaexecutatble": {
+        "fangluatesting.luaexecutatble": {
           "description": "The path to the lua execution file",
           "type": "string",
           "scope": "resource",
           "default": "lua"
         },
-        "luatesting.logpanel": {
+        "fangluatesting.logpanel": {
           "description": "write diagnotic logs to an output panel",
           "type": "boolean",
           "scope": "resource"
         },
-        "luatesting.logfile": {
+        "fangluatesting.logfile": {
           "description": "write diagnostic logs to the given file",
           "type": "string",
           "scope": "resource"
