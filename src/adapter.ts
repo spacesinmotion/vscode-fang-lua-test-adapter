@@ -14,6 +14,8 @@ export class LuaTestingAdapter implements TestAdapter {
 
 	private runningTestProcess: child_process.ChildProcess | undefined;
 
+	private suiteData: string = "";
+
 	get tests(): vscode.Event<TestLoadStartedEvent | TestLoadFinishedEvent> { return this.testsEmitter.event; }
 	get testStates(): vscode.Event<TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent> { return this.testStatesEmitter.event; }
 	get retire(): vscode.Event<RetireEvent> | undefined { return this.retireEmitter.event; }
@@ -22,14 +24,22 @@ export class LuaTestingAdapter implements TestAdapter {
 		public readonly workspace: vscode.WorkspaceFolder,
 		private readonly log: Log
 	) {
-		this.log.info('Initializing lua adapter');
+		this.log.info('Initializing fang lua test adapter');
 		this.disposables.push(this.testsEmitter);
 		this.disposables.push(this.testStatesEmitter);
 		this.disposables.push(this.retireEmitter);
+
+		vscode.workspace.onDidSaveTextDocument(document => {
+			if (document.uri.toString().endsWith("_test.lua")) {
+				this.load();
+			} else {  //if (isApplicationFile(document.uri)) {
+				this.retireEmitter.fire({});
+			}
+		});
 	}
 
 	show_error(message: string): void {
-		vscode.window.showErrorMessage("Fang test adapter error:\n" + message)
+		vscode.window.showErrorMessage("Fang lua test adapter error:\n" + message)
 	}
 
 	async spawn_lua(mode: string, tests: string[], onStdOut: (o: string) => void, onFinish: (error: string) => void): Promise<void> {
@@ -72,22 +82,25 @@ export class LuaTestingAdapter implements TestAdapter {
 		});
 	}
 
+	private is_loading: boolean = false;
+
 	async load(): Promise<void> {
-		if (this.runningTestProcess) return
+		if (this.is_loading) return
+		this.is_loading = true
 
 		this.log.info('Loading lua tests');
 
-		this.testsEmitter.fire(<TestLoadStartedEvent>{ type: 'started' });
-		var suiteData = ""
+		this.testsEmitter.fire({ type: 'started' });
+		this.suiteData = ""
 
 		return this.spawn_lua('suite', [], (o: string) => {
-			suiteData += o.trim()
+			this.suiteData += o.trim()
 		}, (errorMessage: string) => {
 			if (errorMessage != '')
 				this.testsEmitter.fire(<TestLoadFinishedEvent>{ type: 'finished', errorMessage });
-			else if (suiteData != '') {
+			else if (this.suiteData != '') {
 				try {
-					const suite = <TestSuiteInfo>JSON.parse(suiteData)
+					const suite = <TestSuiteInfo>JSON.parse(this.suiteData)
 					if ('children' in suite)
 						this.testsEmitter.fire(<TestLoadFinishedEvent>{ type: 'finished', suite });
 					else
@@ -100,11 +113,14 @@ export class LuaTestingAdapter implements TestAdapter {
 			}
 
 			this.retireEmitter.fire(<RetireEvent>{ tests: ['root'] });
+			this.is_loading = false;
 		});
 	}
 
+	private is_running = false;
 	async run(tests: string[]): Promise<void> {
-		if (this.runningTestProcess) return
+		if (this.is_running) return
+		this.is_running = true;
 
 		this.log.info(`Running lua tests ${JSON.stringify(tests)}`);
 		this.testStatesEmitter.fire(<TestRunStartedEvent>{ type: 'started', tests });
@@ -119,6 +135,7 @@ export class LuaTestingAdapter implements TestAdapter {
 			}
 		}, () => {
 			this.testStatesEmitter.fire(<TestRunFinishedEvent>{ type: 'finished' });
+			this.is_running = false;
 		});
 	}
 

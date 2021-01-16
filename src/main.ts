@@ -7,7 +7,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const workspaceFolder = (vscode.workspace.workspaceFolders || [])[0];
 
-	const log = new Log('luaTesting', workspaceFolder, 'Lua Testing Explorer Log');
+	const log = new Log('FangLuaTesting', workspaceFolder, 'Fang Lua Testing Log');
 	context.subscriptions.push(log);
 
 	const testExplorerExtension = vscode.extensions.getExtension<TestHub>(testExplorerExtensionId);
