@@ -56,7 +56,7 @@ export class FangLuaTestingAdapter implements TestAdapter {
 			if (!path.startsWith('/')) {
 				path = path.substring(1)
 			}
-			const call = ['fang.lua'].concat([mode]).concat([path]).concat(tests)
+			const call = ['fang.lua'].concat([mode]).concat([path]).concat(tests).concat(['--vscode'])
 			this.runningTestProcess = child_process.spawn(lua_executable, call, {
 				cwd: __dirname + '/../fang'
 			});
