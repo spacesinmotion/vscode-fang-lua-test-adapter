@@ -4,6 +4,8 @@ import { Log } from 'vscode-test-adapter-util';
 
 import * as child_process from 'child_process';
 
+import * as readline from 'readline';
+
 export class FangLuaTestingAdapter implements TestAdapter {
 
 	private disposables: { dispose(): void }[] = [];
@@ -57,27 +59,29 @@ export class FangLuaTestingAdapter implements TestAdapter {
 				path = path.substring(1)
 			}
 			const call = ['fang.lua'].concat([mode]).concat([path]).concat(tests).concat(['--vscode'])
-			this.runningTestProcess = child_process.spawn(lua_executable, call, {
+			const cspr = child_process.spawn(lua_executable, call, {
 				cwd: __dirname + '/../fang'
 			});
-
-			this.runningTestProcess.stdout?.on('data', (data) => {
-				onStdOut(`${data}`)
-			});
-
+			this.runningTestProcess = cspr
+			
+			const rl = readline.createInterface({ input: cspr.stdout });
+			rl.on('line', (line: string) => {
+				onStdOut(line)
+			})
+			
 			var standard_error_out = ''
-			this.runningTestProcess.stderr?.on('data', (data) => {
+			cspr.stderr?.on('data', (data) => {
 				standard_error_out += `${data}`
 			});
-
-			this.runningTestProcess.on('error', (err) => {
+			
+			cspr.on('error', (err) => {
 				this.runningTestProcess = undefined
 				this.show_error(`Failed to start subprocess. ${err}`);
 				onFinish(`Failed to start subprocess. ${err}`)
 				reject()
 			});
-
-			this.runningTestProcess.once('exit', () => {
+			
+			cspr.once('exit', () => {
 				this.runningTestProcess = undefined;
 				if (standard_error_out != '') {
 					this.show_error(standard_error_out)
@@ -87,7 +91,7 @@ export class FangLuaTestingAdapter implements TestAdapter {
 			});
 		});
 	}
-
+	
 	private is_loading: boolean = false;
 
 	async load(): Promise<void> {
@@ -133,11 +137,11 @@ export class FangLuaTestingAdapter implements TestAdapter {
 
 		return this.spawn_lua('run', tests, (o: string) => {
 			try {
-				for (const l of o.split(/\r?\n/).filter(x => x)) {
+				for (const l of o.split(/\r?\n/)) {
 					this.testStatesEmitter.fire(JSON.parse(l))
 				}
 			} catch (e) {
-				this.show_error("Failed to parse test run information.")
+				this.show_error("Failed to parse test run information. " + e.toString())
 			}
 		}, () => {
 			this.testStatesEmitter.fire({ type: 'finished' });
