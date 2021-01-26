@@ -52,6 +52,12 @@
     "*"
   ],
   "contributes": {
+    "commands": [
+      {
+        "command": "fangluatesting.initworkspace",
+        "title": "Init fang unit testing workspace"
+      }
+    ],
     "configuration": {
       "type": "object",
       "title": "Lua Testing Explorer configuration",

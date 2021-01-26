@@ -3,8 +3,8 @@ import { TestAdapter, TestLoadStartedEvent, TestLoadFinishedEvent, TestRunStarte
 import { Log } from 'vscode-test-adapter-util';
 
 import * as child_process from 'child_process';
-
 import * as readline from 'readline';
+import { existsSync } from 'fs';
 
 export class FangLuaTestingAdapter implements TestAdapter {
 
@@ -50,7 +50,7 @@ export class FangLuaTestingAdapter implements TestAdapter {
 		vscode.window.showErrorMessage("Fang lua test adapter error:\n" + message)
 	}
 
-	async spawn_lua(mode: string, tests: string[], onStdOut: (o: string) => void, onFinish: (error: string) => void): Promise<void> {
+	async spawn_fang(mode: string, tests: string[], onStdOut: (o: string) => void, onFinish: (error: string) => void): Promise<void> {
 		return new Promise<void>((resolve, reject) => {
 			const lua_executable = <string>vscode.workspace.getConfiguration("fangluatesting", null).get("luaexecutatble");
 
@@ -58,29 +58,34 @@ export class FangLuaTestingAdapter implements TestAdapter {
 			if (!path.startsWith('/')) {
 				path = path.substring(1)
 			}
-			const call = ['fang.lua'].concat([mode]).concat([path]).concat(tests).concat(['--vscode'])
-			const cspr = child_process.spawn(lua_executable, call, {
-				cwd: __dirname + '/../fang'
-			});
+
+			if (!existsSync(path + '/fang/fang.lua')) {
+				onFinish("Fang not initialized!")
+				return;
+			}
+
+			const call = [path + '/fang/fang.lua'].concat([mode]).concat([path]).concat(tests).concat(['--vscode'])
+
+			const cspr = child_process.spawn(lua_executable, call);
 			this.runningTestProcess = cspr
-			
+
 			const rl = readline.createInterface({ input: cspr.stdout });
 			rl.on('line', (line: string) => {
 				onStdOut(line)
 			})
-			
+
 			var standard_error_out = ''
 			cspr.stderr?.on('data', (data) => {
 				standard_error_out += `${data}`
 			});
-			
+
 			cspr.on('error', (err) => {
 				this.runningTestProcess = undefined
 				this.show_error(`Failed to start subprocess. ${err}`);
 				onFinish(`Failed to start subprocess. ${err}`)
 				reject()
 			});
-			
+
 			cspr.once('exit', () => {
 				this.runningTestProcess = undefined;
 				if (standard_error_out != '') {
@@ -91,7 +96,7 @@ export class FangLuaTestingAdapter implements TestAdapter {
 			});
 		});
 	}
-	
+
 	private is_loading: boolean = false;
 
 	async load(): Promise<void> {
@@ -103,7 +108,7 @@ export class FangLuaTestingAdapter implements TestAdapter {
 		this.testsEmitter.fire({ type: 'started' });
 		this.suiteData = ""
 
-		return this.spawn_lua('suite', [], (o: string) => {
+		return this.spawn_fang('suite', [], (o: string) => {
 			this.suiteData += o.trim()
 		}, (errorMessage: string) => {
 			if (errorMessage != '')
@@ -135,7 +140,7 @@ export class FangLuaTestingAdapter implements TestAdapter {
 		this.log.info(`Running lua tests ${JSON.stringify(tests)}`);
 		this.testStatesEmitter.fire({ type: 'started', tests });
 
-		return this.spawn_lua('run', tests, (o: string) => {
+		return this.spawn_fang('run', tests, (o: string) => {
 			try {
 				for (const l of o.split(/\r?\n/)) {
 					this.testStatesEmitter.fire(JSON.parse(l))

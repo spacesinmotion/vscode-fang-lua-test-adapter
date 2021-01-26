@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { TestHub, testExplorerExtensionId } from 'vscode-test-adapter-api';
 import { Log, TestAdapterRegistrar } from 'vscode-test-adapter-util';
 import { FangLuaTestingAdapter } from './adapter';
+import { copyFile, mkdir, existsSync } from 'fs';
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -21,5 +22,37 @@ export async function activate(context: vscode.ExtensionContext) {
 			workspaceFolder => new FangLuaTestingAdapter(workspaceFolder, log),
 			log
 		));
+
 	}
+
+	const initworkspacecommand = vscode.commands.registerCommand('fangluatesting.initworkspace', () => {
+		const path_to_fang = __dirname + '/../fang/fang.lua'
+		const path = (vscode.workspace.workspaceFolders || [])[0].uri.path.normalize()
+		if (existsSync(path + '/fang/fang.lua')) {
+			vscode.window.showInformationMessage('Already initialized!');
+			return
+		}
+
+		const copy_fang = () => {
+			copyFile(path_to_fang, path + '/fang/fang.lua', (err) => {
+				if (err)
+					vscode.window.showErrorMessage("Failed to copy 'fang.lua'")
+				else
+					vscode.window.showInformationMessage('Fang initialized!');
+			});
+		}
+
+		if (existsSync(path + '/fang'))
+			copy_fang();
+		else {
+			mkdir(path + '/fang', (err) => {
+				if (err)
+					vscode.window.showErrorMessage("Failed to create 'fang' directory " + path + '/fang')
+				else
+					copy_fang();
+			});
+		}
+	});
+
+	context.subscriptions.push(initworkspacecommand);
 }
