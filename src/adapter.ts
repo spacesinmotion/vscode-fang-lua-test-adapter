@@ -59,14 +59,14 @@ export class FangLuaTestingAdapter implements TestAdapter {
 				path = path.substring(1)
 			}
 
-			if (!existsSync(path + '/fang/fang.lua')) {
+			if (!existsSync(path + '/fang/fang-runner.lua')) {
 				onFinish("Fang not initialized!")
 				return;
 			}
 
-			const call = [path + '/fang/fang.lua'].concat([mode]).concat([path]).concat(tests).concat(['--vscode'])
+			const call = [path + '/fang/fang-runner.lua'].concat([mode]).concat([path]).concat(tests).concat(['--vscode'])
 
-			const cspr = child_process.spawn(lua_executable, call);
+			const cspr = child_process.spawn(lua_executable, call, { cwd: path });
 			this.runningTestProcess = cspr
 
 			const rl = readline.createInterface({ input: cspr.stdout });
@@ -125,7 +125,8 @@ export class FangLuaTestingAdapter implements TestAdapter {
 					this.show_error(errorMessage)
 					this.testsEmitter.fire({ type: 'finished', errorMessage });
 				}
-			}
+			} else
+				this.testsEmitter.fire({ type: 'finished', errorMessage: 'No tests found' });
 
 			this.retireEmitter.fire({ tests: ['root'] });
 			this.is_loading = false;

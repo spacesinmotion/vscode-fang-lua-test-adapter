@@ -37,8 +37,15 @@ export async function activate(context: vscode.ExtensionContext) {
 			copyFile(path_to_fang, path + '/fang/fang.lua', (err) => {
 				if (err)
 					vscode.window.showErrorMessage("Failed to copy 'fang.lua'")
-				else
-					vscode.window.showInformationMessage('Fang initialized!');
+				else {
+					const path_to_fang_runner = __dirname + '/../fang/fang-runner.lua'
+					copyFile(path_to_fang_runner, path + '/fang/fang-runner.lua', (err) => {
+						if (err)
+							vscode.window.showErrorMessage("Failed to copy 'fang-runner.lua'")
+						else
+							vscode.window.showInformationMessage('Fang initialized!');
+					});
+				}
 			});
 		}
 
